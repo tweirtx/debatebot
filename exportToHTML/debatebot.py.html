@@ -1,0 +1,153 @@
+<html>
+<head>
+<title>debatebot.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.ln { color: #606366; font-weight: normal; font-style: normal; }
+.s0 { color: rgb(204,120,50); }
+.s1 { color: rgb(169,183,198); }
+.s2 { color: rgb(106,135,89); }
+.s3 { color: rgb(128,128,128); }
+</style>
+</head>
+<BODY BGCOLOR="#2b2b2b">
+<TABLE CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<TR><TD><CENTER>
+<FONT FACE="Arial, Helvetica" COLOR="#000000">
+debatebot.py</FONT>
+</center></TD></TR></TABLE>
+<pre>
+<span class="s0">import </span><span class="s1">discord</span><span class="s0">, </span><span class="s1">os</span><span class="s0">, </span><span class="s1">json 
+</span><span class="s0">from </span><span class="s1">discord.ext.commands </span><span class="s0">import </span><span class="s1">Bot</span><span class="s0">, </span><span class="s1">has_permissions</span><span class="s0">, </span><span class="s1">bot_has_permissions 
+</span><span class="s0">from </span><span class="s1">. </span><span class="s0">import </span><span class="s1">db 
+ 
+config = { 
+    </span><span class="s2">'discord_token'</span><span class="s1">: </span><span class="s2">&quot;Put Discord API Token here.&quot;</span><span class="s0">,</span><span class="s1"> 
+} 
+config_file = </span><span class="s2">'config.json'</span><span class="s1"> 
+ 
+</span><span class="s0">if </span><span class="s1">os.path.isfile(config_file): 
+    </span><span class="s0">with </span><span class="s1">open(config_file) </span><span class="s0">as </span><span class="s1">f: 
+        config.update(json.load(f)) 
+ 
+</span><span class="s0">with </span><span class="s1">open(</span><span class="s2">'config.json'</span><span class="s0">, </span><span class="s2">'w'</span><span class="s1">) </span><span class="s0">as </span><span class="s1">f: 
+    json.dump(config</span><span class="s0">, </span><span class="s1">f</span><span class="s0">, </span><span class="s1">indent=</span><span class="s2">'</span><span class="s0">\t</span><span class="s2">'</span><span class="s1">) 
+ 
+ 
+bot = discord.ext.commands.Bot(command_prefix=</span><span class="s2">'d!'</span><span class="s1">) 
+ 
+ 
+@bot_has_permissions(manage_channels=</span><span class="s0">True, </span><span class="s1">manage_roles=</span><span class="s0">True</span><span class="s1">) 
+@has_permissions(manage_channels=</span><span class="s0">True</span><span class="s1">) 
+@bot.command() 
+async </span><span class="s0">def </span><span class="s1">create(ctx</span><span class="s0">, </span><span class="s1">name</span><span class="s0">, </span><span class="s1">side1</span><span class="s0">, </span><span class="s1">side2): 
+    </span><span class="s0">with </span><span class="s1">db.Session() </span><span class="s0">as </span><span class="s1">session: 
+        already_debate = session.query(storage).filter_by(guild=ctx.guild.id) 
+        </span><span class="s0">if </span><span class="s1">already_debate </span><span class="s0">is not None</span><span class="s1">: 
+            await ctx.send(</span><span class="s2">&quot;There is already a debate in this server! Multiple debates are not supported at this time.&quot;</span><span class="s1">) 
+            </span><span class="s0">return</span><span class="s1"> 
+        await ctx.guild.create_role(</span><span class="s2">'{} - {}'</span><span class="s1">.format(name</span><span class="s0">, </span><span class="s1">i)) 
+        side1_role = ctx.guild.get_role(</span><span class="s2">'{} - {}'</span><span class="s1">.format(name</span><span class="s0">, </span><span class="s1">side1)).id 
+        await ctx.guild.create_role(</span><span class="s2">'{} - {}'</span><span class="s1">.format(name</span><span class="s0">, </span><span class="s1">side2)) 
+        side2_role = ctx.guild.get_role(</span><span class="s2">'{} - {}'</span><span class="s1">.format(name</span><span class="s0">, </span><span class="s1">side2)).id 
+        await ctx.guild.create_channel(</span><span class="s2">'{} - Main'</span><span class="s1">) 
+        main_channel = ctx.guild.get_channel(</span><span class="s2">'{} - Main'</span><span class="s1">) 
+         
+        debate = storage(guild=ctx.guild.id</span><span class="s0">, </span><span class="s1">side1_role=side1_role</span><span class="s0">, </span><span class="s1">side2_role=side2_role</span><span class="s0">, </span><span class="s1">main_channel=main_channel</span><span class="s0">, </span><span class="s1">) 
+        session.add(debate) 
+    await ctx.send(</span><span class="s2">&quot;Debate {} with side {} on one side and side {} on the other created successfully&quot;</span><span class="s1">.format(name</span><span class="s0">, </span><span class="s1">side1</span><span class="s0">, </span><span class="s1">side2)) 
+    print(</span><span class="s2">&quot;Create a channel category for the debate, create the channel structure, and create roles&quot;</span><span class="s1">) 
+ 
+ 
+@bot_has_permissions(manage_roles=</span><span class="s0">True</span><span class="s1">) 
+@bot.command() 
+async </span><span class="s0">def </span><span class="s1">floor(ctx</span><span class="s0">, </span><span class="s1">side): 
+    </span><span class="s0">with </span><span class="s1">db.Session() </span><span class="s0">as </span><span class="s1">session: 
+        is_admin = session.query(storage).filter_by(admin=ctx.author.id</span><span class="s0">, </span><span class="s1">guild=ctx.guild.id).one_or_none() 
+        </span><span class="s0">if </span><span class="s1">is_admin </span><span class="s0">is None</span><span class="s1">: 
+            await ctx.send(</span><span class="s2">&quot;You are not the facilitator!&quot;</span><span class="s1">) 
+            </span><span class="s0">return</span><span class="s1"> 
+        side1 = session.query(storage).filter_by(side1_name=side).one_or_none() 
+        side2 = session.query(storage).filter_by(side2_name=side).one_or_none() 
+        </span><span class="s0">if </span><span class="s1">side1 </span><span class="s0">is not None</span><span class="s1">: 
+            overrides = ctx.channel.overwrites_for(side1.side1_role) 
+            overrides.update(send_messages=</span><span class="s0">True</span><span class="s1">) 
+            otheroverrides = ctx.channel.overwrites_for(side1.side2_role) 
+            otheroverrides.update(send_messages=</span><span class="s0">False</span><span class="s1">) 
+            print(</span><span class="s2">&quot;Give the corresponding role ability to send messages and remove that from other&quot;</span><span class="s1">) 
+        </span><span class="s0">elif </span><span class="s1">side2 </span><span class="s0">is not None</span><span class="s1">: 
+            overrides = ctx.channel.overwrites_for(side2.side2_role) 
+            overrides.update(send_messages=</span><span class="s0">True</span><span class="s1">) 
+            otheroverrides = ctx.channel.overwrites_for(side2.side1_role) 
+            otheroverrides.update(send_messages=</span><span class="s0">False</span><span class="s1">) 
+            print(</span><span class="s2">&quot;Give the corresponding role ability to send messages and remove that from other&quot;</span><span class="s1">) 
+        </span><span class="s0">else</span><span class="s1">: 
+            await ctx.send(</span><span class="s2">&quot;No side with that found! Please try again!&quot;</span><span class="s1">) 
+ 
+ 
+@bot.command() 
+async </span><span class="s0">def </span><span class="s1">join(ctx</span><span class="s0">, </span><span class="s1">side): 
+    print(</span><span class="s2">&quot;apply appropriate side role, if not found reply with that info&quot;</span><span class="s1">) 
+    </span><span class="s0">with </span><span class="s1">db.Session() </span><span class="s0">as </span><span class="s1">session: 
+        side1 = session.query(storage).filter_by(side1_name=side).one_or_none() 
+        side2 = session.query(storage).filter_by(side2_name=side).one_or_none() 
+        </span><span class="s0">if </span><span class="s1">side1 </span><span class="s0">is not None</span><span class="s1">: 
+            role = side1.side1_role 
+            existingroles = ctx.author.roles 
+            </span><span class="s0">if </span><span class="s1">side1.side2_role </span><span class="s0">in </span><span class="s1">existingroles: 
+                ctx.author.remove_roles(side1.side2_role) 
+        </span><span class="s0">if </span><span class="s1">side2 </span><span class="s0">is not None</span><span class="s1">: 
+            role = side2.side2_role 
+            existingroles = ctx.author.roles 
+            </span><span class="s0">if </span><span class="s1">side2.side1_role </span><span class="s0">in </span><span class="s1">existingroles: 
+                ctx.author.remove_roles(side2.side1_role) 
+        </span><span class="s0">else</span><span class="s1">: 
+            await ctx.send(</span><span class="s2">&quot;Invalid side to join!&quot;</span><span class="s1">) 
+            </span><span class="s0">return</span><span class="s1"> 
+        ctx.author.add_roles(role) 
+        await ctx.send(</span><span class="s2">&quot;Successfully joined you to {} side!&quot;</span><span class="s1">.format(side)) 
+ 
+ 
+@bot.command() 
+async </span><span class="s0">def </span><span class="s1">end(ctx): 
+    </span><span class="s0">with </span><span class="s1">db.Session() </span><span class="s0">as </span><span class="s1">session: 
+        activeDebate = session.query(storage).filter_by(guild=ctx.guild.id).one_or_none() 
+        </span><span class="s0">if </span><span class="s1">activeDebate </span><span class="s0">is None</span><span class="s1">: 
+            await ctx.send(</span><span class="s2">&quot;No active debate found for this guild!&quot;</span><span class="s1">) 
+            </span><span class="s0">return</span><span class="s1"> 
+        </span><span class="s0">elif </span><span class="s1">activeDebate.admin != ctx.author.id: 
+            await ctx.send(</span><span class="s2">&quot;You are not the admin, you don't have permission to do this!&quot;</span><span class="s1">) 
+            </span><span class="s0">return</span><span class="s1"> 
+        </span><span class="s0">else</span><span class="s1">: 
+            </span><span class="s3"># discord.CategoryChannel(data=activeDebate.channelcat, guild=ctx.guild, state=True)</span><span class="s1"> 
+            cat_channel = bot.get_channel(activeDebate.main_channel).category 
+            overwrite1 = cat_channel.overwrites_for(activeDebate.side1_role) 
+            overwrite2 = cat_channel.overwrites_for(activeDebate.side2_role) 
+            overwrites = [overwrite1</span><span class="s0">, </span><span class="s1">overwrite2] 
+            </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">overwrites: 
+                i.update(send_messages=</span><span class="s0">False</span><span class="s1">) 
+            session.delete(activeDebate) 
+            await ctx.send(</span><span class="s2">&quot;Debate ended successfully!&quot;</span><span class="s1">) 
+ 
+ 
+@bot.command() 
+async </span><span class="s0">def </span><span class="s1">feedback(ctx): 
+    await ctx.send(</span><span class="s2">&quot;Want to give feedback on the bot? Go here: &lt;insert shortened form URL&gt;&quot;</span><span class="s1">) 
+ 
+ 
+</span><span class="s0">class </span><span class="s1">storage(db.DatabaseObject): 
+    __tablename__ = </span><span class="s2">'debateStorage'</span><span class="s1"> 
+    guild = db.Column(db.Integer</span><span class="s0">, </span><span class="s1">primary_key=</span><span class="s0">True</span><span class="s1">) 
+    side1_role = db.Column(db.Integer) 
+    side2_role = db.Column(db.Integer) 
+    main_channel = db.Column(db.Integer) 
+    side1_channel = db.Column(db.Integer) 
+    side2_channel = db.Column(db.Integer) 
+    side1_name = db.Column(db.String) 
+    side2_name = db.Column(db.String) 
+    admin = db.Column(db.Integer) 
+ 
+ 
+bot.run(config[</span><span class="s2">'discord_token'</span><span class="s1">])</span></pre>
+</body>
+</html>
