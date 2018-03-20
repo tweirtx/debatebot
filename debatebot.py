@@ -1,8 +1,8 @@
 import discord
 import os
 import json
+import db
 from discord.ext.commands import Bot, has_permissions, bot_has_permissions
-from . import db
 
 config = {
 	'discord_token': "Put Discord API Token here.",
@@ -25,37 +25,33 @@ bot = discord.ext.commands.Bot(command_prefix='d!')
 @bot.command()
 async def create(ctx, name, side1, side2):
 	with db.Session() as session:
-		already_debate = session.query(Storage).filter_by(guild=ctx.guild.id)
+		already_debate = session.query(Storage).filter_by(guild=ctx.guild.id).one_or_none()
 		if already_debate is not None:
 			await ctx.send("There is already a debate in this server! Multiple debates are not supported at this time.")
 			return
-		await ctx.guild.create_role('{} - {}'.format(name, side1))
-		side1_role = ctx.guild.get_role('{} - {}'.format(name, side1)).id
+		side1_role = await ctx.guild.create_role()
+		await side1_role.edit(name='{} - {}'.format(name, side1))
 
-		await ctx.guild.create_role('{} - {}'.format(name, side2))
-		side2_role = ctx.guild.get_role('{} - {}'.format(name, side2)).id
+		side2_role = await ctx.guild.create_role()
+		await side2_role.edit(name='{} - {}'.format(name, side2))
 
-		await ctx.guild.create_category_channel(name)
-		cat = ctx.guild.get_channel(name)
-		cat.permissions(send_messages=False)
+		cat = await ctx.guild.create_category_channel(name)
+		await cat.set_permissions(target=ctx.guild.default_role, send_messages=False)
 
-		await ctx.guild.create_channel('{} - Main'.format(name))
-		main_channel = ctx.guild.get_channel('{} - Main'.format(name))
-		main_channel.overwrites_for(side1_role).update(send_messages=True)
+		main_channel = await ctx.guild.create_text_channel('{} - Main'.format(name))
+		await main_channel.overwrites_for(side1_role).update(send_messages=True)
 
-		await ctx.guild.create_channel('{} - {}'.format(name, side1), category=cat)
-		side1_channel = ctx.guild.get_channel('{} - {}'.format(name, side1))
-		side1_channel.permissions(read_messages=False)
-		side1_channel.overwrites_for(side1_role).update(read_messages=True, send_messages=True)
+		side1_channel = await ctx.guild.create_text_channel('{} - {}'.format(name, side1), category=cat)
+		await side1_channel.permissions(read_messages=False)
+		await side1_channel.overwrites_for(side1_role).update(read_messages=True, send_messages=True)
 
-		await ctx.guild.create_channel('{} - {}'.format(name, side2), category=cat)
-		side2_channel = ctx.guild.get_channel('{} - {}'.format(name, side2))
+		side2_channel = await ctx.guild.create_text_channel('{} - {}'.format(name, side2), category=cat)
 		await side2_channel.permissions(read_messages=False)
 		side2_channel.overwrites_for(side2_role).update(read_messages=True, send_messages=True)
 
-		debate = Storage(guild=ctx.guild.id, side1_role=side1_role, side2_role=side2_role, main_channel=main_channel,
-																			side1_channel=side1_channel,
-																			side2_channel=side2_channel,
+		debate = Storage(guild=ctx.guild.id, side1_role=side1_role.id, side2_role=side2_role.id, main_channel=main_channel.id,
+																			side1_channel=side1_channel.id,
+																			side2_channel=side2_channel.id,
 																			side1_name=side1,
 																			side2_name=side2,
 																			admin=ctx.author.id)
@@ -80,13 +76,11 @@ async def floor(ctx, side):
 			overrides.update(send_messages=True)
 			otheroverrides = ctx.channel.overwrites_for(side1.side2_role)
 			otheroverrides.update(send_messages=False)
-			print("Give the corresponding role ability to send messages and remove that from other")
 		elif side2 is not None:
 			overrides = ctx.channel.overwrites_for(side2.side2_role)
 			overrides.update(send_messages=True)
 			otheroverrides = ctx.channel.overwrites_for(side2.side1_role)
 			otheroverrides.update(send_messages=False)
-			print("Give the corresponding role ability to send messages and remove that from other")
 		else:
 			await ctx.send("No side with that found! Please try again!")
 
@@ -137,7 +131,7 @@ async def end(ctx):
 
 @bot.command()
 async def feedback(ctx):
-	await ctx.send("Want to give feedback on the bot? Go here: <insert shortened form URL>")
+	await ctx.send("Want to give feedback on the bot? Go here: https://goo.gl/forms/EyEmiCbvKhA3Ngz22")
 
 
 @bot.command()
@@ -145,9 +139,9 @@ async def github(ctx):
 	await ctx.send("Check out my bot code! You can see it here: https://github.com/tweirtx/DebateBot")
 
 
-@bot.command()
-async def help(ctx):
-	await ctx.send("Need some help? Find the help guide at https://tweirtx.github.io/debatebot-help.html")
+@bot.event
+async def on_ready():
+	print("Ready!")
 
 
 class Storage(db.DatabaseObject):
@@ -163,4 +157,5 @@ class Storage(db.DatabaseObject):
 	admin = db.Column(db.Integer)
 
 
-bot.run(config['discord_token'])
+token = config['discord_token']
+bot.run(token)
