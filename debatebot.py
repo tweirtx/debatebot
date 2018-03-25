@@ -2,6 +2,7 @@ import discord
 import os
 import json
 import db
+import time
 from discord.ext.commands import Bot, has_permissions, bot_has_permissions
 
 config = {
@@ -38,15 +39,15 @@ async def create(ctx, name, side1, side2):
 		cat = await ctx.guild.create_category_channel(name)
 		await cat.set_permissions(target=ctx.guild.default_role, send_messages=False)
 
-		main_channel = await ctx.guild.create_text_channel('{} - Main'.format(name))
-		await main_channel.overwrites_for(side1_role).update(send_messages=True)
+		main_channel = await ctx.guild.create_text_channel('{}-main'.format(name), category=cat)
+		main_channel.overwrites_for(side1_role).update(send_messages=True)
 
-		side1_channel = await ctx.guild.create_text_channel('{} - {}'.format(name, side1), category=cat)
-		await side1_channel.permissions(read_messages=False)
-		await side1_channel.overwrites_for(side1_role).update(read_messages=True, send_messages=True)
+		side1_channel = await ctx.guild.create_text_channel('{}-{}'.format(name, side1), category=cat)
+		await side1_channel.set_permissions(target=ctx.guild.default_role, read_messages=False)
+		side1_channel.overwrites_for(side1_role).update(read_messages=True, send_messages=True)
 
-		side2_channel = await ctx.guild.create_text_channel('{} - {}'.format(name, side2), category=cat)
-		await side2_channel.permissions(read_messages=False)
+		side2_channel = await ctx.guild.create_text_channel('{}-{}'.format(name, side2), category=cat)
+		await side2_channel.set_permissions(target=ctx.guild.default_role, read_messages=False)
 		side2_channel.overwrites_for(side2_role).update(read_messages=True, send_messages=True)
 
 		debate = Storage(guild=ctx.guild.id, side1_role=side1_role.id, side2_role=side2_role.id, main_channel=main_channel.id,
