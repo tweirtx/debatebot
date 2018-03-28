@@ -65,6 +65,7 @@ async def create(ctx, name, side1, side2):
 @bot_has_permissions(manage_roles=True)
 @bot.command()
 async def floor(ctx, side):
+	print(ctx)
 	with db.Session() as session:
 		is_admin = session.query(Storage).filter_by(admin=ctx.author.id, guild=ctx.guild.id).one_or_none()
 		if is_admin is None:
@@ -73,15 +74,19 @@ async def floor(ctx, side):
 		side1 = session.query(Storage).filter_by(side1_name=side).one_or_none()
 		side2 = session.query(Storage).filter_by(side2_name=side).one_or_none()
 		if side1 is not None:
-			overrides = ctx.channel.overwrites_for(side1.side1_role)
+			role1 = await discord.ext.commands.Converter.convert(self=discord.ext.commands.Converter.convert, ctx=ctx, argument=side1.side1_role)
+			role2 = await discord.ext.commands.Converter.convert(self=discord.ext.commands.Converter.convert, ctx=ctx, argument=side1.side2_role)
+			overrides = ctx.channel.overwrites_for(role1)
 			overrides.update(send_messages=True)
-			otheroverrides = ctx.channel.overwrites_for(side1.side2_role)
+			otheroverrides = ctx.channel.overwrites_for(role2)
 			otheroverrides.update(send_messages=False)
+			await ctx.send("side {} has the floor".format(side))
 		elif side2 is not None:
-			overrides = ctx.channel.overwrites_for(side2.side2_role)
+			overrides = ctx.channel.overwrites_for(side)
 			overrides.update(send_messages=True)
 			otheroverrides = ctx.channel.overwrites_for(side2.side1_role)
 			otheroverrides.update(send_messages=False)
+			await ctx.send("side {} has the floor".format(side))
 		else:
 			await ctx.send("No side with that found! Please try again!")
 
@@ -158,5 +163,4 @@ class Storage(db.DatabaseObject):
 	admin = db.Column(db.Integer)
 
 
-token = config['discord_token']
-bot.run(token)
+bot.run(config['discord_token'])
