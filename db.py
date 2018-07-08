@@ -27,5 +27,4 @@ class CtxSession(Session):
 	async def __aexit__(self, err_type, err, tb):
 		return self.__exit__(err_type, err, tb)
 
-
 Session = sessionmaker(bind=engine, class_=CtxSession)

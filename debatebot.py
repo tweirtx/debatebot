@@ -99,25 +99,32 @@ async def floor(ctx, *, side):
 
 
 @BOT.command()
-async def join(ctx, side: discord.Role):
+async def join(ctx, side):
     """Lets a user join a side"""
     with db.Session() as session:
         side1 = session.query(Storage).filter_by(side1_name=side).one_or_none()
         side2 = session.query(Storage).filter_by(side2_name=side).one_or_none()
         if side1 is not None:
             role = side1.side1_role
-            existingroles = ctx.author.roles
+            existingroles = []
+            for i in ctx.author.roles:
+                existingroles.append(i.id)
             if side1.side2_role in existingroles:
-                ctx.author.remove_roles(side1.side2_role)
+                roletoremove = discord.utils.get(ctx.guild.roles, id=side1.side2_role)
+                await ctx.author.remove_roles(roletoremove)
         elif side2 is not None:
             role = side2.side2_role
-            existingroles = ctx.author.roles
+            existingroles = []
+            for i in ctx.author.roles:
+                existingroles.append(i.id)
             if side2.side1_role in existingroles:
-                ctx.author.remove_roles(side2.side1_role)
+                roletoremove = discord.utils.get(ctx.guild.roles, id=side2.side1_role)
+                await ctx.author.remove_roles(roletoremove)
         else:
             await ctx.send("Invalid side to join!")
             return
-        ctx.author.add_roles(role)
+        actual_role = discord.utils.get(ctx.guild.roles, id=role)
+        await ctx.author.add_roles(actual_role)
         await ctx.send("Successfully joined you to {} side!".format(side))
 
 
@@ -188,5 +195,7 @@ class Storage(db.DatabaseObject):
     side2_name = db.Column(db.String)
     admin = db.Column(db.Integer)
 
+
+db.DatabaseObject.metadata.create_all()
 
 BOT.run(CONFIG['discord_token'])
