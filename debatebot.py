@@ -42,15 +42,15 @@ async def create(ctx, name, side1, side2):
         await cat.set_permissions(target=ctx.guild.default_role, send_messages=False)
 
         main_channel = await ctx.guild.create_text_channel('{}-main'.format(name), category=cat)
-        main_channel.overwrites_for(side1_role).update(send_messages=True)
+        await main_channel.set_permissions(target=side1_role, send_messages=True)
 
         side1_channel = await ctx.guild.create_text_channel('{}-{}'.format(name, side1), category=cat)
         await side1_channel.set_permissions(target=ctx.guild.default_role, read_messages=False)
-        side1_channel.overwrites_for(side1_role).update(read_messages=True, send_messages=True)
+        await side1_channel.set_permissions(target=side1_role, read_messages=True, send_messages=True)
 
         side2_channel = await ctx.guild.create_text_channel('{}-{}'.format(name, side2), category=cat)
         await side2_channel.set_permissions(target=ctx.guild.default_role, read_messages=False)
-        side2_channel.overwrites_for(side2_role).update(read_messages=True, send_messages=True)
+        await side2_channel.set_permissions(target=side2_role, read_messages=True, send_messages=True)
 
         debate = Storage(guild=ctx.guild.id,
                          side1_role=side1_role.id,
@@ -79,20 +79,18 @@ async def floor(ctx, *, side):
         side1 = session.query(Storage).filter_by(side1_name=side).one_or_none()
         side2 = session.query(Storage).filter_by(side2_name=side).one_or_none()
         if side1 is not None:
-            role1 = discord.utils.get(ctx.guild.roles, name="{}".format(side1.side1_name))
-            role2 = discord.utils.get(ctx.guild.roles, name="{}".format(side1.side2_name))
-            overrides = ctx.channel.overwrites_for(role1)
-            overrides.update(send_messages=True)
-            otheroverrides = ctx.channel.overwrites_for(role2)
-            otheroverrides.update(send_messages=False)
+            channel = ctx.guild.get_channel(channel_id=side1.main_channel)
+            role1 = discord.utils.get(ctx.guild.roles, id=side1.side1_role)
+            role2 = discord.utils.get(ctx.guild.roles, id=side1.side2_role)
+            await channel.set_permissions(target=role1, send_messages=True)
+            await channel.set_permissions(target=role2, send_messages=False)
             await ctx.send("Side {} has the floor".format(side))
         elif side2 is not None:
-            role1 = discord.utils.get(ctx.guild.roles, name="{}".format(side2.side1_name))
-            role2 = discord.utils.get(ctx.guild.roles, name="{}".format(side2.side2_name))
-            overrides = ctx.channel.overwrites_for(role1)
-            overrides.update(send_messages=False)
-            otheroverrides = ctx.channel.overwrites_for(role2)
-            otheroverrides.update(send_messages=True)
+            channel = ctx.guild.get_channel(channel_id=side2.main_channel)
+            role1 = discord.utils.get(ctx.guild.roles, id=side2.side1_role)
+            role2 = discord.utils.get(ctx.guild.roles, id=side2.side2_role)
+            await channel.set_permissions(target=role1, send_messages=False)
+            await channel.set_permissions(target=role2, send_messages=True)
             await ctx.send("Side {} has the floor".format(side))
         else:
             await ctx.send("No side with that found! Please try again!")
