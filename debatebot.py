@@ -25,11 +25,11 @@ BOT = discord.ext.commands.Bot(command_prefix='d!')
 @bot_has_permissions(manage_channels=True, manage_roles=True)
 @has_permissions(manage_channels=True)
 @BOT.command()
-async def create(ctx, name, side1, side2):
+async def create(ctx, name: converter.clean_content(), side1: converter.clean_content(), side2: converter.clean_content()):
     """Sets up a debate"""
-    name = await converter.clean_content.convert(self=converter.clean_content(), ctx=ctx, argument=name)
-    side1 = await converter.clean_content.convert(self=converter.clean_content(), ctx=ctx, argument=side1)
-    side2 = await converter.clean_content.convert(self=converter.clean_content(), ctx=ctx, argument=side2)
+    name = name.strip()
+    side1 = side1.strip()
+    side2 = side2.strip()
     if len(name) > 30:
         await ctx.send("Debate name is too long!")
         return
@@ -87,8 +87,8 @@ async def floor(ctx, *, side):
         if is_admin is None:
             await ctx.send("You are not the facilitator!")
             return
-        side1 = session.query(Storage).filter_by(side1_name=side).one_or_none()
-        side2 = session.query(Storage).filter_by(side2_name=side).one_or_none()
+        side1 = session.query(Storage).filter_by(side1_name=side, guild=ctx.guild.id).one_or_none()
+        side2 = session.query(Storage).filter_by(side2_name=side, guild=ctx.guild.id).one_or_none()
         if side1 is not None:
             channel = ctx.guild.get_channel(channel_id=side1.main_channel)
             role1 = discord.utils.get(ctx.guild.roles, id=side1.side1_role)
@@ -111,8 +111,8 @@ async def floor(ctx, *, side):
 async def join(ctx, side):
     """Lets a user join a side"""
     with db.Session() as session:
-        side1 = session.query(Storage).filter_by(side1_name=side).one_or_none()
-        side2 = session.query(Storage).filter_by(side2_name=side).one_or_none()
+        side1 = session.query(Storage).filter_by(side1_name=side, guild=ctx.guild.id).one_or_none()
+        side2 = session.query(Storage).filter_by(side2_name=side, guild=ctx.guild.id).one_or_none()
         if side1 is not None:
             role = side1.side1_role
             existingroles = []
