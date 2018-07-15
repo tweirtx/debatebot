@@ -2,7 +2,7 @@
 import os
 import json
 import discord
-from discord.ext.commands import has_permissions, bot_has_permissions
+from discord.ext.commands import has_permissions, bot_has_permissions, clean_content, converter
 import db
 
 
@@ -27,16 +27,27 @@ BOT = discord.ext.commands.Bot(command_prefix='d!')
 @BOT.command()
 async def create(ctx, name, side1, side2):
     """Sets up a debate"""
+    name = await converter.clean_content.convert(self=converter.clean_content(), ctx=ctx, argument=name)
+    side1 = await converter.clean_content.convert(self=converter.clean_content(), ctx=ctx, argument=side1)
+    side2 = await converter.clean_content.convert(self=converter.clean_content(), ctx=ctx, argument=side2)
+    if len(name) > 30:
+        await ctx.send("Debate name is too long!")
+        return
+    if len("{}-{}".format(name, side1)) > 32 or len("{}-{}".format(name, side2)) > 32:
+        await ctx.send("Please shorten the names, they are too long! Max combined length of debate name and sides "
+                       "is 31 characters")
+        return
+    if side1 == side2:
+        await ctx.send("Side names cannot be the same!")
+        return
     with db.Session() as session:
         already_debate = session.query(Storage).filter_by(guild=ctx.guild.id).one_or_none()
         if already_debate is not None:
             await ctx.send("There is already a debate in this server! Multiple debates are not supported at this time.")
             return
-        side1_role = await ctx.guild.create_role()
-        await side1_role.edit(name='{}'.format(side1))
+        side1_role = await ctx.guild.create_role(name=side1)
 
-        side2_role = await ctx.guild.create_role()
-        await side2_role.edit(name='{}'.format(side2))
+        side2_role = await ctx.guild.create_role(name=side2)
 
         cat = await ctx.guild.create_category_channel(name)
         await cat.set_permissions(target=ctx.guild.default_role, send_messages=False)
@@ -127,6 +138,20 @@ async def join(ctx, side):
 
 
 @BOT.command()
+async def leave(ctx):
+    """Removes a user from a particular side"""
+    with db.Session() as session:
+        active_debate = session.query(Storage).filter_by(guild=ctx.guild.id).one_or_none()
+        role1 = discord.utils.get(ctx.guild.roles, id=active_debate.side1_role)
+        role2 = discord.utils.get(ctx.guild.roles, id=active_debate.side2_role)
+        sideroles = [role1, role2]
+        for role in ctx.author.roles:
+            if role in sideroles:
+                await ctx.author.remove_roles(role)
+        await ctx.send("{} has left".format(ctx.author.mention))
+
+
+@BOT.command()
 async def end(ctx):
     """Ends a debate"""
     with db.Session() as session:
@@ -138,26 +163,18 @@ async def end(ctx):
             await ctx.send("You are not the admin, you don't have permission to do this!")
             return
         else:
-            # discord.CategoryChannel(data=active_debate.channelcat, guild=ctx.guild, state=True)
-            cat_channel = BOT.get_channel(active_debate.main_channel).category
-            for i in ctx.guild.roles:
-                if i.id == active_debate.side1_role:
-                    role1 = i
-                if i.id == active_debate.side2_role:
-                    role2 = i
-            overwrites = []
-            try:
-                overwrite1 = cat_channel.overwrites_for(role1)
-                overwrites.append(overwrite1)
-            except UnboundLocalError:
-                await ctx.send("Not deleting nonexistent role for {}".format(active_debate.side1_name))
-            try:
-                overwrite2 = cat_channel.overwrites_for(role2)
-                overwrites.append(overwrite2)
-            except UnboundLocalError:
-                await ctx.send("Not deleting nonexistent role for {}".format(active_debate.side2_name))
-            for i in overwrites:
-                i.update(send_messages=False)
+            main_channel = ctx.guild.get_channel(active_debate.main_channel)
+            cat_channel = main_channel.category
+            role1 = discord.utils.get(ctx.guild.roles, id=active_debate.side1_role)
+            role2 = discord.utils.get(ctx.guild.roles, id=active_debate.side2_role)
+            for i in [role1, role2]:
+                overwrite = cat_channel.overwrites_for(i)
+                main_overwrite = main_channel.overwrites_for(i)
+                if overwrite is not None:
+                    overwrite.update(send_messages=False)
+                    await cat_channel.set_permissions(target=i, overwrite=overwrite)
+                if main_overwrite is not None:
+                    await main_channel.set_permissions(target=i, overwrite=None)
             session.delete(active_debate)
             await ctx.send("Debate ended successfully!")
 
