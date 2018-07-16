@@ -1,8 +1,9 @@
 """A Discord bot for structuring Discord debates"""
 import os
+import asyncio
 import json
 import discord
-from discord.ext.commands import has_permissions, bot_has_permissions, clean_content, converter
+from discord.ext.commands import has_permissions, bot_has_permissions, converter, check, has_role
 import db
 
 
@@ -22,14 +23,24 @@ with open('config.json', 'w') as f:
 BOT = discord.ext.commands.Bot(command_prefix='d!')
 
 
+def does_not_have_role(name):
+    def predicate(ctx):
+        if not isinstance(ctx.channel, discord.abc.GuildChannel):
+            return False
+
+        role = discord.utils.get(ctx.author.roles, name=name)
+        return role is None
+    return check(predicate)
+
+
 @bot_has_permissions(manage_channels=True, manage_roles=True)
 @has_permissions(manage_channels=True)
 @BOT.command()
 async def create(ctx, name: converter.clean_content(), side1: converter.clean_content(), side2: converter.clean_content()):
     """Sets up a debate"""
-    name = name.strip()
-    side1 = side1.strip()
-    side2 = side2.strip()
+    name = name.strip().replace('\r', '').replace('\n', '')
+    side1 = side1.strip().replace('\r', '').replace('\n', '')
+    side2 = side2.strip().replace('\r', '').replace('\n', '')
     if len(name) > 30:
         await ctx.send("Debate name is too long!")
         return
@@ -40,6 +51,9 @@ async def create(ctx, name: converter.clean_content(), side1: converter.clean_co
     if side1 == side2:
         await ctx.send("Side names cannot be the same!")
         return
+    blacklist_role = discord.utils.get(ctx.guild.roles, name='debatebot-blacklist')
+    if blacklist_role is None:
+        await ctx.guild.create_role(name='debatebot-blacklist')
     with db.Session() as session:
         already_debate = session.query(Storage).filter_by(guild=ctx.guild.id).one_or_none()
         if already_debate is not None:
@@ -106,35 +120,42 @@ async def floor(ctx, *, side):
         else:
             await ctx.send("No side with that found! Please try again!")
 
+locks = {}
 
+
+@does_not_have_role(name='debatebot-blacklist')
 @BOT.command()
-async def join(ctx, side):
+async def join(ctx, *, side):
     """Lets a user join a side"""
-    with db.Session() as session:
-        side1 = session.query(Storage).filter_by(side1_name=side, guild=ctx.guild.id).one_or_none()
-        side2 = session.query(Storage).filter_by(side2_name=side, guild=ctx.guild.id).one_or_none()
-        if side1 is not None:
-            role = side1.side1_role
-            existingroles = []
-            for i in ctx.author.roles:
-                existingroles.append(i.id)
-            if side1.side2_role in existingroles:
-                roletoremove = discord.utils.get(ctx.guild.roles, id=side1.side2_role)
-                await ctx.author.remove_roles(roletoremove)
-        elif side2 is not None:
-            role = side2.side2_role
-            existingroles = []
-            for i in ctx.author.roles:
-                existingroles.append(i.id)
-            if side2.side1_role in existingroles:
-                roletoremove = discord.utils.get(ctx.guild.roles, id=side2.side1_role)
-                await ctx.author.remove_roles(roletoremove)
-        else:
-            await ctx.send("Invalid side to join!")
-            return
-        actual_role = discord.utils.get(ctx.guild.roles, id=role)
-        await ctx.author.add_roles(actual_role)
-        await ctx.send("Successfully joined you to {} side!".format(side))
+    lock = locks.get(ctx.guild.id)
+    if lock is None:
+        lock = locks[ctx.guild.id] = asyncio.Lock()
+    async with lock:
+        with db.Session() as session:
+            side1 = session.query(Storage).filter_by(side1_name=side, guild=ctx.guild.id).one_or_none()
+            side2 = session.query(Storage).filter_by(side2_name=side, guild=ctx.guild.id).one_or_none()
+            if side1 is not None:
+                role = side1.side1_role
+                existingroles = []
+                for i in ctx.author.roles:
+                    existingroles.append(i.id)
+                if side1.side2_role in existingroles:
+                    roletoremove = discord.utils.get(ctx.guild.roles, id=side1.side2_role)
+                    await ctx.author.remove_roles(roletoremove)
+            elif side2 is not None:
+                role = side2.side2_role
+                existingroles = []
+                for i in ctx.author.roles:
+                    existingroles.append(i.id)
+                if side2.side1_role in existingroles:
+                    roletoremove = discord.utils.get(ctx.guild.roles, id=side2.side1_role)
+                    await ctx.author.remove_roles(roletoremove)
+            else:
+                await ctx.send("Invalid side to join!")
+                return
+            actual_role = discord.utils.get(ctx.guild.roles, id=role)
+            await ctx.author.add_roles(actual_role)
+            await ctx.send("Successfully joined you to {} side!".format(side))
 
 
 @BOT.command()
@@ -195,6 +216,14 @@ async def github(ctx):
 async def on_ready():
     """Tells the host that it's ready"""
     print("Ready!")
+
+
+@BOT.event
+async def on_command_error(ctx, exception):
+    if isinstance(exception, discord.ext.commands.errors.CheckFailure):
+        await ctx.send("You are not allowed to do that!")
+    else:
+        print(exception)
 
 
 class Storage(db.DatabaseObject):
