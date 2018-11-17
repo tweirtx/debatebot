@@ -1,24 +1,9 @@
 """A Discord bot for structuring Discord debates"""
-import os
 import asyncio
-import json
 import discord
 from discord.ext.commands import has_permissions, bot_has_permissions, converter, check, has_role
 import db
-
-
-CONFIG = {
-    'discord_token': "Put Discord API Token here.",
-}
-CONFIG_FILE = 'config.json'
-
-if os.path.isfile(CONFIG_FILE):
-    with open(CONFIG_FILE) as f:
-        CONFIG.update(json.load(f))
-
-with open('config.json', 'w') as f:
-    json.dump(CONFIG, f, indent='\t')
-
+from config import Config
 
 BOT = discord.ext.commands.Bot(command_prefix='d!')
 
@@ -88,10 +73,11 @@ async def create(ctx, name: converter.clean_content(), side1: converter.clean_co
                          admin=ctx.author.id)
         session.add(debate)
 
-    await ctx.send("Debate {} with sides {} and {} on the other created successfully".format(name, side1, side2))
+    await ctx.send("Debate {} with sides {} and {} created successfully".format(name, side1, side2))
     await ctx.send("Side {} has the floor".format(side1))
 
 
+@bot_has_permissions(manage_roles=True)
 @bot_has_permissions(manage_roles=True)
 @BOT.command()
 async def floor(ctx, *, side):
@@ -158,6 +144,7 @@ async def join(ctx, *, side):
             await ctx.send("Successfully joined you to {} side!".format(side))
 
 
+@bot_has_permissions(manage_roles=True)
 @BOT.command()
 async def leave(ctx):
     """Removes a user from a particular side"""
@@ -172,6 +159,7 @@ async def leave(ctx):
         await ctx.send("{} has left".format(ctx.author.mention))
 
 
+@bot_has_permissions(manage_channels=True, manage_roles=True)
 @BOT.command()
 async def end(ctx):
     """Ends a debate"""
@@ -216,6 +204,8 @@ async def github(ctx):
 async def on_ready():
     """Tells the host that it's ready"""
     print("Ready!")
+    activity = discord.Activity(name="debates in {} guilds".format(len(BOT.guilds)), type=discord.ActivityType.watching)
+    await BOT.change_presence(activity=activity)
 
 
 @BOT.event
@@ -226,20 +216,27 @@ async def on_command_error(ctx, exception):
         print(exception)
 
 
+@BOT.event
+async def on_message(message):
+    if message.author.bot:
+        return
+    await BOT.process_commands(message)
+
+
 class Storage(db.DatabaseObject):
     """Stores everything"""
     __tablename__ = 'debateStorage'
-    guild = db.Column(db.Integer, primary_key=True)
-    side1_role = db.Column(db.Integer)
-    side2_role = db.Column(db.Integer)
-    main_channel = db.Column(db.Integer)
-    side1_channel = db.Column(db.Integer)
-    side2_channel = db.Column(db.Integer)
+    guild = db.Column(db.BigInteger, primary_key=True)
+    side1_role = db.Column(db.BigInteger)
+    side2_role = db.Column(db.BigInteger)
+    main_channel = db.Column(db.BigInteger)
+    side1_channel = db.Column(db.BigInteger)
+    side2_channel = db.Column(db.BigInteger)
     side1_name = db.Column(db.String)
     side2_name = db.Column(db.String)
-    admin = db.Column(db.Integer)
+    admin = db.Column(db.BigInteger)
 
 
 db.DatabaseObject.metadata.create_all()
 
-BOT.run(CONFIG['discord_token'])
+BOT.run(Config.CONFIG['discord_token'])
