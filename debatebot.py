@@ -212,8 +212,8 @@ async def on_ready():
 async def on_command_error(ctx, exception):
     if isinstance(exception, discord.ext.commands.errors.CheckFailure):
         await ctx.send("You are not allowed to do that!")
-    else:
-        print(exception)
+    elif isinstance(exception, discord.ext.commands.errors.MissingRequiredArgument):
+        await ctx.send(exception)
 
 
 @BOT.event
