@@ -5,7 +5,7 @@ from discord.ext.commands import has_permissions, bot_has_permissions, converter
 import db
 from config import Config
 
-BOT = discord.ext.commands.Bot(command_prefix='d!')
+bot = discord.ext.commands.Bot(command_prefix='d!')
 
 
 def does_not_have_role(name):
@@ -20,7 +20,7 @@ def does_not_have_role(name):
 
 @bot_has_permissions(manage_channels=True, manage_roles=True)
 @has_permissions(manage_channels=True)
-@BOT.command()
+@bot.command()
 async def create(ctx, name: converter.clean_content(), side1: converter.clean_content(), side2: converter.clean_content()):
     """Sets up a debate"""
     name = name.strip().replace('\r', '').replace('\n', '')
@@ -79,7 +79,7 @@ async def create(ctx, name: converter.clean_content(), side1: converter.clean_co
 
 @bot_has_permissions(manage_roles=True)
 @bot_has_permissions(manage_roles=True)
-@BOT.command()
+@bot.command()
 async def floor(ctx, *, side):
     """Gives the floor to one side"""
     with db.Session() as session:
@@ -110,7 +110,7 @@ locks = {}
 
 
 @does_not_have_role(name='debatebot-blacklist')
-@BOT.command()
+@bot.command()
 async def join(ctx, *, side):
     """Lets a user join a side"""
     lock = locks.get(ctx.guild.id)
@@ -145,7 +145,7 @@ async def join(ctx, *, side):
 
 
 @bot_has_permissions(manage_roles=True)
-@BOT.command()
+@bot.command()
 async def leave(ctx):
     """Removes a user from a particular side"""
     with db.Session() as session:
@@ -160,7 +160,7 @@ async def leave(ctx):
 
 
 @bot_has_permissions(manage_channels=True, manage_roles=True)
-@BOT.command()
+@bot.command()
 async def end(ctx):
     """Ends a debate"""
     with db.Session() as session:
@@ -188,19 +188,19 @@ async def end(ctx):
             await ctx.send("Debate ended successfully!")
 
 
-@BOT.command()
+@bot.command()
 async def feedback(ctx):
     """Links to the feedback form"""
     await ctx.send("Want to give feedback on the bot? Go here: https://goo.gl/forms/EyEmiCbvKhA3Ngz22")
 
 
-@BOT.command()
+@bot.command()
 async def github(ctx):
     """Links to source code"""
     await ctx.send("Check out my bot code! You can see it here: https://github.com/tweirtx/DebateBot")
 
 
-@BOT.event
+@bot.event
 async def on_ready():
     """Tells the host that it's ready"""
     print("Ready!")
@@ -208,7 +208,7 @@ async def on_ready():
     await BOT.change_presence(activity=activity)
 
 
-@BOT.event
+@bot.event
 async def on_command_error(ctx, exception):
     if isinstance(exception, discord.ext.commands.errors.CheckFailure):
         await ctx.send("You are not allowed to do that!")
@@ -216,7 +216,7 @@ async def on_command_error(ctx, exception):
         await ctx.send(exception)
 
 
-@BOT.event
+@bot.event
 async def on_message(message):
     if message.author.bot:
         return
@@ -239,4 +239,4 @@ class Storage(db.DatabaseObject):
 
 db.DatabaseObject.metadata.create_all()
 
-BOT.run(Config.CONFIG['discord_token'])
+bot.run(Config.CONFIG['discord_token'])
