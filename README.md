@@ -7,6 +7,6 @@ Credits:
 
 @tweirtx: Main bot dev and host
 
-@endreman0: Testing this and making it actually good
+@octocynth: Testing this and making it actually good
 
 When you run d!create (name) (side1) (side2), lots of things happen. First, a category channel is created. Next, channels for discussion and each side are created. Finally, roles are created, and the debate begins. Participants join sides and the facilitator gives each side the "floor" in the main channel at a time.

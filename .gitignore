@@ -1,4 +1,4 @@
-.idea/
-venv/
-debatebot.db
 config.json
+venv/
+.idea/
+debatebot.db
