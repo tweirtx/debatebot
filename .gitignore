@@ -1,0 +1,4 @@
+.idea/
+venv/
+debatebot.db
+config.json

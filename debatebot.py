@@ -49,6 +49,7 @@ async def create(ctx, name: converter.clean_content(), side1: converter.clean_co
         side2_role = await ctx.guild.create_role(name=side2)
 
         cat = await ctx.guild.create_category_channel(name)
+        await cat.set_permissions(target=ctx.guild.me, read_messages=True)
         await cat.set_permissions(target=ctx.guild.default_role, send_messages=False)
 
         main_channel = await ctx.guild.create_text_channel('{}-main'.format(name), category=cat)
@@ -210,10 +211,8 @@ async def on_ready():
 
 @BOT.event
 async def on_command_error(ctx, exception):
-    if isinstance(exception, discord.ext.commands.errors.CheckFailure):
-        await ctx.send("You are not allowed to do that!")
-    else:
-        print(exception)
+    await ctx.send(exception)
+    print(exception)
 
 
 @BOT.event
