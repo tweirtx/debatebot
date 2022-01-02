@@ -23,6 +23,7 @@ def does_not_have_role(name):
 @BOT.command()
 async def create(ctx, name: converter.clean_content(), side1: converter.clean_content(), side2: converter.clean_content()):
     """Sets up a debate"""
+    await ctx.send("I need help making an important decision. Send me your thoughts here: https://forms.gle/VQhtCBkVfwxGZDPK7")
     name = name.strip().replace('\r', '').replace('\n', '')
     side1 = side1.strip().replace('\r', '').replace('\n', '')
     side2 = side2.strip().replace('\r', '').replace('\n', '')
@@ -83,6 +84,7 @@ async def create(ctx, name: converter.clean_content(), side1: converter.clean_co
 @BOT.command()
 async def floor(ctx, *, side):
     """Gives the floor to one side"""
+    await ctx.send("I need help making an important decision. Send me your thoughts here: https://forms.gle/VQhtCBkVfwxGZDPK7")
     with db.Session() as session:
         is_admin = session.query(Storage).filter_by(admin=ctx.author.id, guild=ctx.guild.id).one_or_none()
         if is_admin is None:
@@ -164,6 +166,7 @@ async def leave(ctx):
 @BOT.command()
 async def end(ctx):
     """Ends a debate"""
+    await ctx.send("I need help making an important decision. Send me your thoughts here: https://forms.gle/VQhtCBkVfwxGZDPK7")
     with db.Session() as session:
         active_debate = session.query(Storage).filter_by(guild=ctx.guild.id).one_or_none()
         if active_debate is None:
@@ -192,7 +195,7 @@ async def end(ctx):
 @BOT.command()
 async def feedback(ctx):
     """Links to the feedback form"""
-    await ctx.send("Want to give feedback on the bot? Go here: https://goo.gl/forms/EyEmiCbvKhA3Ngz22")
+    await ctx.send("I need to make an important decision. Please help me here: https://forms.gle/VQhtCBkVfwxGZDPK7")
 
 
 @BOT.command()
