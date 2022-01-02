@@ -208,7 +208,7 @@ async def github(ctx):
 async def on_ready():
     """Tells the host that it's ready"""
     print("Ready!")
-    activity = discord.Activity(name="debates in {} guilds".format(len(BOT.guilds)), type=discord.ActivityType.watching)
+    activity = discord.Activity(name="for feedback at https://forms.gle/VQhtCBkVfwxGZDPK7", type=discord.ActivityType.watching)
     await BOT.change_presence(activity=activity)
 
 
